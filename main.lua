@@ -25,11 +25,14 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
 -- 1. Anti-Fling (Включена по умолчанию)
+local antiFlingActive = true
 local antiFlingConnection
 local function toggleAntiFling(state)
+    antiFlingActive = state
     if state then
         if not antiFlingConnection then
             antiFlingConnection = RunService.Stepped:Connect(function()
+                if not antiFlingActive then return end
                 for _, player in ipairs(Players:GetPlayers()) do
                     if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                         local hrp = player.Character.HumanoidRootPart
@@ -46,15 +49,22 @@ local function toggleAntiFling(state)
         end
     end
 end
-toggleAntiFling(true) -- Включаем по умолчанию
+toggleAntiFling(true)
 
--- 2. Power: Super Duper Far (Максимальная сила броска)
+-- 2. Power: Super Duper Far & Power Level (Максимальная сила броска)
 local function setSuperDuperFarPower()
     pcall(function()
-        -- Модификация параметров броска/силы в игре
         for _, v in pairs(getgc(true)) do
-            if type(v) == "table" and rawget(v, "ThrowPower") then
-                v.ThrowPower = 999999 -- Максимальное значение
+            if type(v) == "table" then
+                if rawget(v, "ThrowPower") then
+                    v.ThrowPower = 999999
+                end
+                if rawget(v, "PowerLevel") then
+                    v.PowerLevel = 999999
+                end
+                if rawget(v, "MaxPower") then
+                    v.MaxPower = 999999
+                end
             end
         end
     end)
@@ -64,12 +74,16 @@ setSuperDuperFarPower()
 -- 3. Вид от третьего лица
 LocalPlayer.CameraMaxZoomDistance = 150
 LocalPlayer.CameraMinZoomDistance = 0.5
+LocalPlayer.CameraMode = Enum.CameraMode.Custom
 
--- 4. Инициализация элементов в GUI
+-- 4. Связь с GUI
 if GUI.Initialize then
     GUI.Initialize({
         OnAntiFlingToggle = function(state)
             toggleAntiFling(state)
+        end,
+        OnPowerBoost = function()
+            setSuperDuperFarPower()
         end,
         OnAimToggle = function(state, targetPart, keybind)
             if AimModule and AimModule.SetActive then
@@ -84,4 +98,4 @@ if GUI.Initialize then
     })
 end
 
-print("[Script] Fling Things and People loaded successfully!")
+print("[Script] Fling Things and People (Ultimate) loaded successfully!")
