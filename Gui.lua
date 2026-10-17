@@ -45,50 +45,39 @@ function GuiLibrary.Initialize(callbacks)
     }
 
     local ICONS = {
-        Search   = "rbxassetid://7733911828",
-        Chevron  = "rbxassetid://7733717447",
-        More     = "rbxassetid://7734021300",
-        Menu     = "rbxassetid://7733993211",
         Combat   = "rbxassetid://7734053426",
         Movement = "rbxassetid://7733799901",
         Visuals  = "rbxassetid://7733774602",
-        Player   = "rbxassetid://7733954760",
+        Misc     = "rbxassetid://7734056411",
         User     = "rbxassetid://7733954760",
         Chart    = "rbxassetid://7733749837",
         Clock    = "rbxassetid://7733734762",
         Compass  = "rbxassetid://7733720755",
-        Signal   = "rbxassetid://7734058495",
-        Radar    = "rbxassetid://7734053426",
-        Speed    = "rbxassetid://7733799901"
+        Signal   = "rbxassetid://7734058495"
     }
 
     local TWEEN_FAST = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local TWEEN_SLOW = TweenInfo.new(0.35, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
 
     -- HUD WATERMARK
-    local HudContainer = Instance.new("Frame")
+    local HudContainer = Instance.new("Frame", ScreenGui)
     HudContainer.Size = UDim2.new(0, 600, 0, 50)
     HudContainer.Position = UDim2.new(0, 16, 0, 48)
     HudContainer.BackgroundTransparency = 1
-    HudContainer.Parent = ScreenGui
 
-    local HudVerticalLayout = Instance.new("UIListLayout")
+    local HudVerticalLayout = Instance.new("UIListLayout", HudContainer)
     HudVerticalLayout.SortOrder = Enum.SortOrder.LayoutOrder
     HudVerticalLayout.Padding = UDim.new(0, 4)
-    HudVerticalLayout.Parent = HudContainer
 
     local function createHudRow(name, height, order)
-        local row = Instance.new("Frame")
+        local row = Instance.new("Frame", HudContainer)
         row.Size = UDim2.new(1, 0, 0, height)
         row.BackgroundTransparency = 1
         row.LayoutOrder = order
-        row.Parent = HudContainer
-        local hLayout = Instance.new("UIListLayout")
+        local hLayout = Instance.new("UIListLayout", row)
         hLayout.FillDirection = Enum.FillDirection.Horizontal
         hLayout.SortOrder = Enum.SortOrder.LayoutOrder
         hLayout.VerticalAlignment = Enum.VerticalAlignment.Center
         hLayout.Padding = UDim.new(0, 5)
-        hLayout.Parent = row
         return row
     end
 
@@ -96,13 +85,12 @@ function GuiLibrary.Initialize(callbacks)
     local BottomHudRow = createHudRow("BottomRow", 22, 2)
 
     local function createHudPill(parent, order)
-        local pill = Instance.new("Frame")
+        local pill = Instance.new("Frame", parent)
         pill.AutomaticSize = Enum.AutomaticSize.X
         pill.Size = UDim2.new(0, 0, 1, 0)
         pill.BackgroundColor3 = THEME.PillBg
         pill.BorderSizePixel = 0
         pill.LayoutOrder = order
-        pill.Parent = parent
         Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 5)
         local stroke = Instance.new("UIStroke", pill)
         stroke.Color = THEME.Border
@@ -139,55 +127,19 @@ function GuiLibrary.Initialize(callbacks)
         return lbl
     end
 
-    local function addHudSmallIcon(parent, iconId, order)
-        local icon = Instance.new("ImageLabel", parent)
-        icon.Size = UDim2.new(0, 11, 0, 11)
-        icon.BackgroundTransparency = 1
-        icon.Image = iconId
-        icon.ScaleType = Enum.ScaleType.Fit
-        icon.ImageColor3 = THEME.Accent
-        icon.LayoutOrder = order
-        return icon
-    end
-
     local BrandPill = createHudPill(TopHudRow, 1)
-    local HudLogoWrap = Instance.new("Frame", BrandPill)
-    HudLogoWrap.Size = UDim2.new(0, 20, 0, 20)
-    HudLogoWrap.BackgroundTransparency = 1
-    HudLogoWrap.LayoutOrder = 1
-
-    local HudBrandLogo = Instance.new("ImageLabel", HudLogoWrap)
-    HudBrandLogo.Size = UDim2.new(1.35, 0, 1.35, 0)
-    HudBrandLogo.Position = UDim2.new(-0.175, 0, -0.175, 0)
-    HudBrandLogo.BackgroundTransparency = 1
-    HudBrandLogo.Image = CUSTOM_LOGO_ID
-    HudBrandLogo.ScaleType = Enum.ScaleType.Fit
-    HudBrandLogo.ImageColor3 = Color3.fromRGB(255, 255, 255)
-
-    addHudDivider(BrandPill, 2)
     addHudText(BrandPill, "SKV FTAP", false, 3)
 
     local StatsPill = createHudPill(TopHudRow, 2)
-    addHudSmallIcon(StatsPill, ICONS.User, 1)
-    addHudText(StatsPill, string.lower(LocalPlayer.Name), false, 2)
-    addHudDivider(StatsPill, 3)
-    addHudSmallIcon(StatsPill, ICONS.Chart, 4)
     local FpsLabel = addHudText(StatsPill, "0 Fps", false, 5)
-    addHudDivider(StatsPill, 6)
-    addHudSmallIcon(StatsPill, ICONS.Clock, 7)
     local TimeLabel = addHudText(StatsPill, "00:00:00", false, 8)
 
     local PosPill = createHudPill(BottomHudRow, 1)
-    addHudSmallIcon(PosPill, ICONS.Compass, 1)
-    addHudDivider(PosPill, 2)
     local PosLabel = addHudText(PosPill, "0, 0, 0", false, 3)
-
     local PingPill = createHudPill(BottomHudRow, 2)
-    addHudSmallIcon(PingPill, ICONS.Signal, 1)
-    addHudDivider(PingPill, 2)
     local PingLabel = addHudText(PingPill, "0 Ping", false, 3)
 
-    -- FPS/Ping updater loop
+    -- Обновление HUD
     local fpsCounter, lastFpsCheck = 0, os.clock()
     RunService.RenderStepped:Connect(function()
         fpsCounter = fpsCounter + 1
@@ -200,14 +152,14 @@ function GuiLibrary.Initialize(callbacks)
         TimeLabel.Text = os.date("%H:%M:%S")
         local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
         PingLabel.Text = string.format("%d Ping", ping)
-        local character = LocalPlayer.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            local currentPos = character.HumanoidRootPart.Position
-            PosLabel.Text = string.format("%d, %d, %d", math.floor(currentPos.X), math.floor(currentPos.Y), math.floor(currentPos.Z))
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local p = char.HumanoidRootPart.Position
+            PosLabel.Text = string.format("%d, %d, %d", math.floor(p.X), math.floor(p.Y), math.floor(p.Z))
         end
     end)
 
-    -- MAIN GUI WINDOW (SKV FTAP)
+    -- MAIN WINDOW
     local Main = Instance.new("Frame", ScreenGui)
     Main.Name = "MainFrame"
     Main.Size = UDim2.new(0, 790, 0, 490)
@@ -215,21 +167,7 @@ function GuiLibrary.Initialize(callbacks)
     Main.BackgroundColor3 = THEME.Background
     Main.BorderSizePixel = 0
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
-    local MainStroke = Instance.new("UIStroke", Main)
-    MainStroke.Color = THEME.Border
-    MainStroke.Thickness = 1.2
-
-    local GlowBackdrop = Instance.new("ImageLabel", Main)
-    GlowBackdrop.Name = "GlowBackdrop"
-    GlowBackdrop.BackgroundTransparency = 1
-    GlowBackdrop.Position = UDim2.new(0, -45, 0, -45)
-    GlowBackdrop.Size = UDim2.new(1, 90, 1, 90)
-    GlowBackdrop.ZIndex = 0
-    GlowBackdrop.Image = "rbxassetid://5028857084"
-    GlowBackdrop.ImageColor3 = THEME.AccentDark
-    GlowBackdrop.ImageTransparency = 0.83
-    GlowBackdrop.ScaleType = Enum.ScaleType.Slice
-    GlowBackdrop.SliceCenter = Rect.new(24, 24, 276, 276)
+    Instance.new("UIStroke", Main).Color = THEME.Border
 
     -- Dragging
     do
@@ -252,12 +190,8 @@ function GuiLibrary.Initialize(callbacks)
         end)
     end
 
-    -- TopBar & Search
-    local TopBar = Instance.new("Frame", Main)
-    TopBar.Size = UDim2.new(1, 0, 0, 56)
-    TopBar.BackgroundTransparency = 1
-
-    local SearchBox = Instance.new("Frame", TopBar)
+    -- Search Bar
+    local SearchBox = Instance.new("Frame", Main)
     SearchBox.Size = UDim2.new(0, 250, 0, 26)
     SearchBox.Position = UDim2.new(0, 185, 0, 15)
     SearchBox.BackgroundColor3 = THEME.CardBg
@@ -275,7 +209,7 @@ function GuiLibrary.Initialize(callbacks)
     SearchInput.BackgroundTransparency = 1
     SearchInput.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Sidebar
+    -- Sidebar Container & Tabs setup
     local Sidebar = Instance.new("Frame", Main)
     Sidebar.Size = UDim2.new(0, 155, 1, -58)
     Sidebar.Position = UDim2.new(0, 14, 0, 54)
@@ -296,27 +230,110 @@ function GuiLibrary.Initialize(callbacks)
 
     addCategory("Features")
 
-    -- Content Columns Area
     local ContentArea = Instance.new("Frame", Main)
     ContentArea.Size = UDim2.new(1, -195, 1, -62)
     ContentArea.Position = UDim2.new(0, 182, 0, 54)
     ContentArea.BackgroundTransparency = 1
 
-    local Col1 = Instance.new("ScrollingFrame", ContentArea)
-    Col1.Size = UDim2.new(0.485, 0, 1, 0)
-    Col1.BackgroundTransparency = 1
-    Col1.ScrollBarThickness = 0
-    Instance.new("UIListLayout", Col1).Padding = UDim.new(0, 12)
+    -- Создаем вкладки (Containers)
+    local containers = {}
+    local tabButtons = {}
+    local activeSidebarTab = nil
 
-    local Col2 = Instance.new("ScrollingFrame", ContentArea)
-    Col2.Size = UDim2.new(0.485, 0, 1, 0)
-    Col2.Position = UDim2.new(0.515, 0, 0, 0)
-    Col2.BackgroundTransparency = 1
-    Col2.ScrollBarThickness = 0
-    Instance.new("UIListLayout", Col2).Padding = UDim.new(0, 12)
+    local function createTabContainer(tabName)
+        local container = Instance.new("Frame", ContentArea)
+        container.Size = UDim2.new(1, 0, 1, 0)
+        container.BackgroundTransparency = 1
+        container.Visible = false
 
-    local function createCard(parent, titleText)
-        local card = Instance.new("Frame", parent)
+        local col1 = Instance.new("ScrollingFrame", container)
+        col1.Size = UDim2.new(0.485, 0, 1, 0)
+        col1.BackgroundTransparency = 1
+        col1.ScrollBarThickness = 0
+        Instance.new("UIListLayout", col1).Padding = UDim.new(0, 12)
+
+        local col2 = Instance.new("ScrollingFrame", container)
+        col2.Size = UDim2.new(0.485, 0, 1, 0)
+        col2.Position = UDim2.new(0.515, 0, 0, 0)
+        col2.BackgroundTransparency = 1
+        col2.ScrollBarThickness = 0
+        Instance.new("UIListLayout", col2).Padding = UDim.new(0, 12)
+
+        containers[tabName] = {Col1 = col1, Col2 = col2}
+        return container
+    end
+
+    createTabContainer("Combat")
+    createTabContainer("Movement")
+    createTabContainer("Visuals")
+    createTabContainer("Misc")
+
+    local function addSidebarItem(name, iconId, isDefaultActive)
+        local btn = Instance.new("TextButton", Sidebar)
+        btn.Size = UDim2.new(1, -4, 0, 29)
+        btn.BackgroundColor3 = isDefaultActive and THEME.SidebarActive or THEME.Background
+        btn.BackgroundTransparency = isDefaultActive and 0 or 1
+        btn.Text = ""
+        btn.AutoButtonColor = false
+
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+        local stroke = Instance.new("UIStroke", btn)
+        stroke.Color = THEME.BorderActive
+        stroke.Transparency = isDefaultActive and 0 or 1
+
+        local icon = Instance.new("ImageLabel", btn)
+        icon.Size = UDim2.new(0, 14, 0, 14)
+        icon.Position = UDim2.new(0, 9, 0.5, -7)
+        icon.BackgroundTransparency = 1
+        icon.Image = iconId
+        icon.ImageColor3 = isDefaultActive and THEME.Accent or THEME.TextMuted
+
+        local title = Instance.new("TextLabel", btn)
+        title.Size = UDim2.new(1, -32, 1, 0)
+        title.Position = UDim2.new(0, 30, 0, 0)
+        title.BackgroundTransparency = 1
+        title.Text = name
+        title.Font = Enum.Font.GothamMedium
+        title.TextSize = 11
+        title.TextColor3 = isDefaultActive and THEME.TextPrimary or THEME.TextMuted
+        title.TextXAlignment = Enum.TextXAlignment.Left
+
+        if isDefaultActive then
+            activeSidebarTab = {Btn = btn, Icon = icon, Title = title, Stroke = stroke, Name = name}
+            containers[name].Parent.Visible = true
+        else
+            containers[name].Parent.Visible = false
+        end
+
+        btn.MouseButton1Click:Connect(function()
+            if activeSidebarTab.Name == name then return end
+
+            -- Сброс старой вкладки
+            TweenService:Create(activeSidebarTab.Btn, TWEEN_FAST, {BackgroundTransparency = 1}):Play()
+            TweenService:Create(activeSidebarTab.Stroke, TWEEN_FAST, {Transparency = 1}):Play()
+            TweenService:Create(activeSidebarTab.Icon, TWEEN_FAST, {ImageColor3 = THEME.TextMuted}):Play()
+            TweenService:Create(activeSidebarTab.Title, TWEEN_FAST, {TextColor3 = THEME.TextMuted}):Play()
+            containers[activeSidebarTab.Name].Parent.Visible = false
+
+            -- Активация новой
+            TweenService:Create(btn, TWEEN_FAST, {BackgroundTransparency = 0, BackgroundColor3 = THEME.SidebarActive}):Play()
+            TweenService:Create(stroke, TWEEN_FAST, {Transparency = 0}):Play()
+            TweenService:Create(icon, TWEEN_FAST, {ImageColor3 = THEME.Accent}):Play()
+            TweenService:Create(title, TWEEN_FAST, {TextColor3 = THEME.TextPrimary}):Play()
+            containers[name].Parent.Visible = true
+
+            activeSidebarTab = {Btn = btn, Icon = icon, Title = title, Stroke = stroke, Name = name}
+        end)
+    end
+
+    addSidebarItem("Combat", ICONS.Combat, true)
+    addSidebarItem("Movement", ICONS.Movement, false)
+    addSidebarItem("Visuals", ICONS.Visuals, false)
+    addSidebarItem("Misc", ICONS.Misc, false)
+
+    local function createCard(tabName, colNum, titleText)
+        local targetCol = (colNum == 1) and containers[tabName].Col1 or containers[tabName].Col2
+        local card = Instance.new("Frame", targetCol)
         card.Size = UDim2.new(1, 0, 0, 0)
         card.AutomaticSize = Enum.AutomaticSize.Y
         card.BackgroundColor3 = THEME.CardBg
@@ -405,33 +422,33 @@ function GuiLibrary.Initialize(callbacks)
         end
     end)
 
-    -- Карточки с функциями под FTAP
-    local cardProtection = createCard(Col1, "Protection & Power")
-    addToggle(cardProtection, "Anti-Fling", "Защита от флинга игроков", true, function(state)
-        if callbacks.OnAntiFlingToggle then callbacks.OnAntiFlingToggle(state) end
-    end)
-    addToggle(cardProtection, "Super Duper Far Power", "Максимальная сила броска", true, function(state)
-        if state and callbacks.OnPowerBoost then callbacks.OnPowerBoost() end
-    end)
+    -- Наполнение вкладок функциями FTAP
+    -- [COMBAT]
+    local cCard1 = createCard("Combat", 1, "Fling & Power")
+    addToggle(cCard1, "Anti-Fling", "Защита от флинга", true, function(s) if callbacks.OnAntiFlingToggle then callbacks.OnAntiFlingToggle(s) end end)
+    addToggle(cCard1, "Super Duper Far Power", "Макс. сила броска", true, function(s) if s and callbacks.OnPowerBoost then callbacks.OnPowerBoost() end end)
+    addToggle(cCard1, "Fling Aura", "Швыряние всех вокруг тебя", false, function(s) if callbacks.OnFlingAuraToggle then callbacks.OnFlingAuraToggle(s) end end)
 
-    local cardAim = createCard(Col1, "Aim Bot (Hands & Legs)")
-    local aimActive = false
-    local currentPart = "LeftHand"
-    addToggle(cardAim, "Enable Aim Bot", "Наведение броска по бинду (Q)", false, function(state)
-        aimActive = state
-        if callbacks.OnAimToggle then callbacks.OnAimToggle(aimActive, currentPart, Enum.KeyCode.Q) end
-    end)
+    local cCard2 = createCard("Combat", 2, "Aim Assist")
+    addToggle(cCard2, "Enable Aim Bot", "Наведение по бинду (Q)", false, function(s) if callbacks.OnAimToggle then callbacks.OnAimToggle(s, "LeftHand", Enum.KeyCode.Q) end end)
 
-    local cardESP = createCard(Col2, "ESP Visuals")
-    local espSettings = {Boxes = false, Names = false, Distance = false, Health = false, Tracers = false}
-    local function updateESP()
-        if callbacks.OnESPToggle then callbacks.OnESPToggle(espSettings) end
-    end
-    addToggle(cardESP, "Boxes", "Подсветка рамками", false, function(s) espSettings.Boxes = s; updateESP() end)
-    addToggle(cardESP, "Names", "Отображение имен", false, function(s) espSettings.Names = s; updateESP() end)
-    addToggle(cardESP, "Distance", "Дистанция до игроков", false, function(s) espSettings.Distance = s; updateESP() end)
-    addToggle(cardESP, "Health", "Полоски здоровья", false, function(s) espSettings.Health = s; updateESP() end)
-    addToggle(cardESP, "Tracers", "Линии до игроков", false, function(s) espSettings.Tracers = s; updateESP() end)
+    -- [VISUALS]
+    local vCard1 = createCard("Visuals", 1, "ESP Options")
+    local espSettings = {Boxes = false, Names = false, Distance = false, Health = false, Tracers = false, Chams = false}
+    local function updateESP() if callbacks.OnESPToggle then callbacks.OnESPToggle(espSettings) end end
+
+    addToggle(vCard1, "Boxes", "Рамки вокруг игроков", false, function(s) espSettings.Boxes = s; updateESP() end)
+    addToggle(vCard1, "Names", "Имена игроков", false, function(s) espSettings.Names = s; updateESP() end)
+    addToggle(vCard1, "Distance", "Дистанция", false, function(s) espSettings.Distance = s; updateESP() end)
+    addToggle(vCard1, "Health", "Полоски здоровья", false, function(s) espSettings.Health = s; updateESP() end)
+    addToggle(vCard1, "Tracers", "Линии до игроков", false, function(s) espSettings.Tracers = s; updateESP() end)
+    addToggle(vCard1, "Chams", "Подсветка тел (Chams)", false, function(s) espSettings.Chams = s; updateESP() end)
+
+    -- [MISC]
+    local mCard1 = createCard("Misc", 1, "Settings")
+    addToggle(mCard1, "Third Person View", "Вид от третьего лица", true, function(s)
+        LocalPlayer.CameraMaxZoomDistance = s and 150 or 15
+    end)
 
     -- Скрытие меню по RightShift
     local isUIVisible = true
