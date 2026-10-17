@@ -82,7 +82,6 @@ function GuiLibrary.Initialize(callbacks)
     end
 
     local TopHudRow = createHudRow("TopRow", 22, 1)
-    local BottomHudRow = createHudRow("BottomRow", 22, 2)
 
     local function createHudPill(parent, order)
         local pill = Instance.new("Frame", parent)
@@ -149,23 +148,14 @@ function GuiLibrary.Initialize(callbacks)
     })
 
     local StatsPill = createHudPill(TopHudRow, 2)
-    local UserLabel = addHudText(StatsPill, string.lower(LocalPlayer.DisplayName), false, 1)
+    local FpsLabel = addHudText(StatsPill, "0 Fps", false, 1)
     addHudDivider(StatsPill, 2)
-    local FpsLabel = addHudText(StatsPill, "0 Fps", false, 3)
+    local HpLabel = addHudText(StatsPill, "100 HP", false, 3)
     addHudDivider(StatsPill, 4)
-    local TimeLabel = addHudText(StatsPill, "00:00:00", false, 5)
+    local PingLabel = addHudText(StatsPill, "0 Ping", false, 5)
 
-    local PosPill = createHudPill(BottomHudRow, 1)
-    local PosLabel = addHudText(PosPill, "0, 0, 0", false, 3)
-    local PingPill = createHudPill(BottomHudRow, 2)
-    local PingLabel = addHudText(PingPill, "0 Ping", false, 3)
-    local SpeedPill = createHudPill(BottomHudRow, 3)
-    local SpeedLabel = addHudText(SpeedPill, "0.0 Bps", false, 3)
-
-    -- Обновление HUD
+    -- Обновление HUD (FPS, HP, Ping)
     local fpsCounter, lastFpsCheck = 0, os.clock()
-    local lastPosition = Vector3.zero
-    local lastPosTime = os.clock()
     RunService.RenderStepped:Connect(function()
         fpsCounter = fpsCounter + 1
         local now = os.clock()
@@ -174,24 +164,14 @@ function GuiLibrary.Initialize(callbacks)
             fpsCounter = 0
             lastFpsCheck = now
         end
-        TimeLabel.Text = os.date("%H:%M:%S")
         local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
         PingLabel.Text = string.format("%d Ping", ping)
         local char = LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            local p = hrp.Position
-            PosLabel.Text = string.format("%d, %d, %d", math.floor(p.X), math.floor(p.Y), math.floor(p.Z))
-            local deltaTime = now - lastPosTime
-            if deltaTime >= 0.1 then
-                local dist = (Vector3.new(p.X, 0, p.Z) - Vector3.new(lastPosition.X, 0, lastPosition.Z)).Magnitude
-                SpeedLabel.Text = string.format("%.1f Bps", dist / deltaTime)
-                lastPosition = p
-                lastPosTime = now
-            end
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            HpLabel.Text = string.format("%d HP", math.max(math.floor(humanoid.Health), 0))
         else
-            PosLabel.Text = "0, 0, 0"
-            SpeedLabel.Text = "0.0 Bps"
+            HpLabel.Text = "0 HP"
         end
     end)
 
@@ -571,10 +551,11 @@ function GuiLibrary.Initialize(callbacks)
         end
     end)
 
-    -- Скрытие меню по RightShift
-    local isUIVisible = true
-    UserInputService.InputBegan:Connect(function(input, gp)
-        if not gp and input.KeyCode == Enum.KeyCode.RightShift then
+    -- Показ/скрытие меню по RightShift (при старте меню скрыто)
+    local isUIVisible = false
+    Main.Visible = false
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if input.KeyCode == Enum.KeyCode.RightShift then
             isUIVisible = not isUIVisible
             Main.Visible = isUIVisible
         end
