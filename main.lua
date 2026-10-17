@@ -1,7 +1,7 @@
 --[main.lua]--
 local repo = "https://raw.githubusercontent.com/luaexedll/rbxscriptDrop/refs/heads/main/"
 
--- Загрузка GUI
+-- Загрузка GUI в новом стиле SKV FTAP
 local success, GUI = pcall(function()
     return loadstring(game:HttpGet(repo .. "Gui.lua"))()
 end)
@@ -76,7 +76,7 @@ LocalPlayer.CameraMaxZoomDistance = 150
 LocalPlayer.CameraMinZoomDistance = 0.5
 LocalPlayer.CameraMode = Enum.CameraMode.Custom
 
--- 4. Связь с GUI
+-- 4. Инициализация связи с GUI
 if GUI.Initialize then
     GUI.Initialize({
         OnAntiFlingToggle = function(state)
@@ -98,4 +98,4 @@ if GUI.Initialize then
     })
 end
 
-print("[Script] Fling Things and People (Ultimate) loaded successfully!")
+print("[Script] SKV FTAP loaded successfully!")
