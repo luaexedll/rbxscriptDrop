@@ -20,7 +20,6 @@ function ESPModule.UpdateSettings(newSettings)
     end
 end
 
--- Очистка при выходе игрока
 Players.PlayerRemoving:Connect(function(player)
     if espDrawings[player] then
         for _, drawing in pairs(espDrawings[player]) do
@@ -58,28 +57,32 @@ RunService.RenderStepped:Connect(function()
                         drawings.Box.Visible = true
                         drawings.Box.Size = Vector2.new(2000 / vector.Z, 3000 / vector.Z)
                         drawings.Box.Position = Vector2.new(vector.X - drawings.Box.Size.X / 2, vector.Y - drawings.Box.Size.Y / 2)
-                        drawings.Box.Color = Color3.fromRGB(0, 255, 0)
+                        drawings.Box.Color = Color3.fromRGB(0, 255, 120)
                         drawings.Box.Thickness = 1
+                        drawings.Box.Filled = false
                     else
                         drawings.Box.Visible = false
                     end
                     
-                    -- Names & Distance & Health
+                    -- Names, Distance, Health
                     if settings.Names or settings.Distance or settings.Health then
                         drawings.Name.Visible = true
                         local infoText = player.Name
-                        if settings.Distance then
+                        
+                        if settings.Distance and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
                             local dist = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
                             infoText = infoText .. " [" .. dist .. "m]"
                         end
                         if settings.Health then
-                            infoText = infoText .. " HP: " .. math.floor(humanoid.Health)
+                            infoText = infoText .. " | HP: " .. math.floor(humanoid.Health)
                         end
+                        
                         drawings.Name.Text = infoText
-                        drawings.Name.Position = Vector2.new(vector.X, vector.Y - 40)
-                        drawings.Name.Size = 14
+                        drawings.Name.Position = Vector2.new(vector.X, vector.Y - 45)
+                        drawings.Name.Size = 13
                         drawings.Name.Center = true
                         drawings.Name.Color = Color3.fromRGB(255, 255, 255)
+                        drawings.Name.Outline = true
                     else
                         drawings.Name.Visible = false
                     end
@@ -89,7 +92,7 @@ RunService.RenderStepped:Connect(function()
                         drawings.Tracer.Visible = true
                         drawings.Tracer.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
                         drawings.Tracer.To = Vector2.new(vector.X, vector.Y)
-                        drawings.Tracer.Color = Color3.fromRGB(255, 255, 255)
+                        drawings.Tracer.Color = Color3.fromRGB(0, 255, 120)
                         drawings.Tracer.Thickness = 1
                     else
                         drawings.Tracer.Visible = false
