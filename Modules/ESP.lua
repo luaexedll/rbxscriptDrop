@@ -9,10 +9,12 @@ local settings = {
     Names = false,
     Distance = false,
     Health = false,
-    Tracers = false
+    Tracers = false,
+    Chams = false
 }
 
 local espDrawings = {}
+local highlights = {}
 
 function ESPModule.UpdateSettings(newSettings)
     for k, v in pairs(newSettings) do
@@ -22,16 +24,44 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
     if espDrawings[player] then
-        for _, drawing in pairs(espDrawings[player]) do
-            drawing:Remove()
-        end
+        for _, drawing in pairs(espDrawings[player]) do drawing:Remove() end
         espDrawings[player] = nil
+    end
+    if highlights[player] then
+        highlights[player]:Destroy()
+        highlights[player] = nil
     end
 end)
 
 RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
+            local char = player.Character
+
+            -- Управление Chams (Highlight)
+            if settings.Chams then
+                if char and not highlights[player] then
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "SKV_Chams"
+                    hl.FillColor = Color3.fromRGB(246, 92, 82)
+                    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    hl.FillTransparency = 0.5
+                    hl.OutlineTransparency = 0.2
+                    hl.Adornee = char
+                    hl.Parent = char
+                    highlights[player] = hl
+                elseif highlights[player] and highlights[player].Parent ~= char then
+                    highlights[player]:Destroy()
+                    highlights[player] = nil
+                end
+            else
+                if highlights[player] then
+                    highlights[player]:Destroy()
+                    highlights[player] = nil
+                end
+            end
+
+            -- Drawing ESP (Boxes, Names, etc.)
             if not espDrawings[player] then
                 espDrawings[player] = {
                     Box = Drawing.new("Square"),
@@ -43,9 +73,7 @@ RunService.RenderStepped:Connect(function()
                 espDrawings[player].Tracer.Visible = false
             end
             
-            local char = player.Character
             local drawings = espDrawings[player]
-            
             if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
                 local hrp = char.HumanoidRootPart
                 local humanoid = char.Humanoid
@@ -82,7 +110,7 @@ RunService.RenderStepped:Connect(function()
                     end
                     
                     if settings.Tracers then
-                        drawings.Tracer.Visible = true
+                        drawings.Tracers.Visible = true
                         drawings.Tracer.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
                         drawings.Tracer.To = Vector2.new(vector.X, vector.Y)
                         drawings.Tracer.Color = Color3.fromRGB(246, 92, 82)
