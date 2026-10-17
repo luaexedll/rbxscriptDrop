@@ -219,6 +219,16 @@ function GuiLibrary.Initialize(callbacks)
         end)
     end
 
+    -- Показ/скрытие меню по RightShift (при старте меню скрыто)
+    local isUIVisible = false
+    Main.Visible = false
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if input.KeyCode == Enum.KeyCode.RightShift then
+            isUIVisible = not isUIVisible
+            Main.Visible = isUIVisible
+        end
+    end)
+
     -- Search Bar
     local SearchBox = Instance.new("Frame", Main)
     SearchBox.Size = UDim2.new(0, 250, 0, 26)
@@ -228,6 +238,7 @@ function GuiLibrary.Initialize(callbacks)
     Instance.new("UIStroke", SearchBox).Color = THEME.Border
 
     local SearchInput = Instance.new("TextBox", SearchBox)
+    SearchInput.Text = ""
     SearchInput.PlaceholderText = "Search feature..."
     SearchInput.PlaceholderColor3 = THEME.TextMuted
     SearchInput.TextColor3 = THEME.TextPrimary
@@ -288,7 +299,7 @@ function GuiLibrary.Initialize(callbacks)
         col2.ScrollBarThickness = 0
         Instance.new("UIListLayout", col2).Padding = UDim.new(0, 12)
 
-        containers[tabName] = {Col1 = col1, Col2 = col2}
+        containers[tabName] = {Frame = container, Col1 = col1, Col2 = col2}
         return container
     end
 
@@ -329,9 +340,9 @@ function GuiLibrary.Initialize(callbacks)
 
         if isDefaultActive then
             activeSidebarTab = {Btn = btn, Icon = icon, Title = title, Stroke = stroke, Name = name}
-            containers[name].Parent.Visible = true
+            containers[name].Frame.Visible = true
         else
-            containers[name].Parent.Visible = false
+            containers[name].Frame.Visible = false
         end
 
         btn.MouseButton1Click:Connect(function()
@@ -342,14 +353,14 @@ function GuiLibrary.Initialize(callbacks)
             TweenService:Create(activeSidebarTab.Stroke, TWEEN_FAST, {Transparency = 1}):Play()
             TweenService:Create(activeSidebarTab.Icon, TWEEN_FAST, {ImageColor3 = THEME.TextMuted}):Play()
             TweenService:Create(activeSidebarTab.Title, TWEEN_FAST, {TextColor3 = THEME.TextMuted}):Play()
-            containers[activeSidebarTab.Name].Parent.Visible = false
+            containers[activeSidebarTab.Name].Frame.Visible = false
 
             -- Активация новой
             TweenService:Create(btn, TWEEN_FAST, {BackgroundTransparency = 0, BackgroundColor3 = THEME.SidebarActive}):Play()
             TweenService:Create(stroke, TWEEN_FAST, {Transparency = 0}):Play()
             TweenService:Create(icon, TWEEN_FAST, {ImageColor3 = THEME.Accent}):Play()
             TweenService:Create(title, TWEEN_FAST, {TextColor3 = THEME.TextPrimary}):Play()
-            containers[name].Parent.Visible = true
+            containers[name].Frame.Visible = true
 
             activeSidebarTab = {Btn = btn, Icon = icon, Title = title, Stroke = stroke, Name = name}
         end)
@@ -548,16 +559,6 @@ function GuiLibrary.Initialize(callbacks)
             LocalPlayer.CameraMode = Enum.CameraMode.Classic
             LocalPlayer.CameraMinZoomDistance = 0.5
             LocalPlayer.CameraMaxZoomDistance = s and 150 or 12
-        end
-    end)
-
-    -- Показ/скрытие меню по RightShift (при старте меню скрыто)
-    local isUIVisible = false
-    Main.Visible = false
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if input.KeyCode == Enum.KeyCode.RightShift then
-            isUIVisible = not isUIVisible
-            Main.Visible = isUIVisible
         end
     end)
 
