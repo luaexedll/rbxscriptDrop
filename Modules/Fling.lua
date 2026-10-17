@@ -8,25 +8,29 @@ local active = false
 local connection
 
 function FlingModule.SetActive(state)
-    active = state
-    if active then
-        if not connection then
-            connection = RunService.Stepped:Connect(function()
-                if not active then return end
-                local char = LocalPlayer.Character
-                if char and char:FindFirstChild("HumanoidRootPart") then
-                    local hrp = char.HumanoidRootPart
-                    -- Принудительное вращение и разгон для раскидывания игроков физикой игры
-                    hrp.AssemblyAngularVelocity = Vector3.new(0, 99999, 0)
-                end
-            end)
-        end
-    else
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
+    active = (state == true)
+
+    if connection then
+        connection:Disconnect()
+        connection = nil
     end
+    if not active then
+        return
+    end
+
+    connection = RunService.Stepped:Connect(function()
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if not hrp or hrp.Anchored then
+            return
+        end
+        if humanoid and humanoid.Health <= 0 then
+            return
+        end
+        -- Принудительное вращение: физика игры разбрасывает всех, кто касается
+        hrp.AssemblyAngularVelocity = Vector3.new(0, 99999, 0)
+    end)
 end
 
 return FlingModule
