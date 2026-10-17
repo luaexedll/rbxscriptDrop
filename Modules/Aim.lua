@@ -17,28 +17,28 @@ end
 
 RunService.RenderStepped:Connect(function()
     if not active then return end
-    
-    -- Проверка удержания кнопки мыши или клавиши наведения
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-    
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(targetPartName) then
-            local part = player.Character[targetPartName]
-            local screenPoint, onScreen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
-            if onScreen then
-                local mousePos = UserInputService:GetMouseLocation()
-                local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-                if dist < shortestDistance then
-                    shortestDistance = dist
-                    closestPlayer = part
+    if UserInputService:IsKeyDown(aimKey) then
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(targetPartName) then
+                local part = player.Character[targetPartName]
+                local screenPoint, onScreen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+                if onScreen then
+                    local mousePos = UserInputService:GetMouseLocation()
+                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                    if dist < shortestDistance then
+                        shortestDistance = dist
+                        closestPlayer = part
+                    end
                 end
             end
         end
-    end
-    
-    if closestPlayer then
-        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, closestPlayer.Position)
+        
+        if closestPlayer then
+            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, closestPlayer.Position)
+        end
     end
 end)
 
