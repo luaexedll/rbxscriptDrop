@@ -128,19 +128,44 @@ function GuiLibrary.Initialize(callbacks)
     end
 
     local BrandPill = createHudPill(TopHudRow, 1)
-    addHudText(BrandPill, "SKV FTAP", false, 3)
+    local BrandLogo = Instance.new("ImageLabel", BrandPill)
+    BrandLogo.Size = UDim2.new(0, 16, 0, 16)
+    BrandLogo.BackgroundTransparency = 1
+    BrandLogo.Image = CUSTOM_LOGO_ID
+    BrandLogo.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    local BrandLogoGrad = Instance.new("UIGradient", BrandLogo)
+    BrandLogoGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.0, THEME.AccentSoft),
+        ColorSequenceKeypoint.new(0.45, THEME.Accent),
+        ColorSequenceKeypoint.new(1.0, Color3.fromRGB(165, 32, 42))
+    })
+    BrandLogoGrad.Rotation = -35
+    addHudDivider(BrandPill, 2)
+    local BrandText = addHudText(BrandPill, "SKV FTAP", false, 3)
+    local BrandTextGrad = Instance.new("UIGradient", BrandText)
+    BrandTextGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.0, THEME.AccentSoft),
+        ColorSequenceKeypoint.new(1.0, THEME.Accent)
+    })
 
     local StatsPill = createHudPill(TopHudRow, 2)
-    local FpsLabel = addHudText(StatsPill, "0 Fps", false, 5)
-    local TimeLabel = addHudText(StatsPill, "00:00:00", false, 8)
+    local UserLabel = addHudText(StatsPill, string.lower(LocalPlayer.DisplayName), false, 1)
+    addHudDivider(StatsPill, 2)
+    local FpsLabel = addHudText(StatsPill, "0 Fps", false, 3)
+    addHudDivider(StatsPill, 4)
+    local TimeLabel = addHudText(StatsPill, "00:00:00", false, 5)
 
     local PosPill = createHudPill(BottomHudRow, 1)
     local PosLabel = addHudText(PosPill, "0, 0, 0", false, 3)
     local PingPill = createHudPill(BottomHudRow, 2)
     local PingLabel = addHudText(PingPill, "0 Ping", false, 3)
+    local SpeedPill = createHudPill(BottomHudRow, 3)
+    local SpeedLabel = addHudText(SpeedPill, "0.0 Bps", false, 3)
 
     -- Обновление HUD
     local fpsCounter, lastFpsCheck = 0, os.clock()
+    local lastPosition = Vector3.zero
+    local lastPosTime = os.clock()
     RunService.RenderStepped:Connect(function()
         fpsCounter = fpsCounter + 1
         local now = os.clock()
@@ -153,9 +178,20 @@ function GuiLibrary.Initialize(callbacks)
         local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
         PingLabel.Text = string.format("%d Ping", ping)
         local char = LocalPlayer.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local p = char.HumanoidRootPart.Position
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local p = hrp.Position
             PosLabel.Text = string.format("%d, %d, %d", math.floor(p.X), math.floor(p.Y), math.floor(p.Z))
+            local deltaTime = now - lastPosTime
+            if deltaTime >= 0.1 then
+                local dist = (Vector3.new(p.X, 0, p.Z) - Vector3.new(lastPosition.X, 0, lastPosition.Z)).Magnitude
+                SpeedLabel.Text = string.format("%.1f Bps", dist / deltaTime)
+                lastPosition = p
+                lastPosTime = now
+            end
+        else
+            PosLabel.Text = "0, 0, 0"
+            SpeedLabel.Text = "0.0 Bps"
         end
     end)
 
@@ -169,11 +205,24 @@ function GuiLibrary.Initialize(callbacks)
     Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 12)
     Instance.new("UIStroke", Main).Color = THEME.Border
 
-    -- Dragging
+    -- Dragging (клики по кнопкам/инпутам не двигают окно)
     do
         local dragging, dragStart, startPos
+        local function isInteractiveGui(guiObject)
+            local current = guiObject
+            while current and current ~= Main do
+                if current:IsA("TextButton") or current:IsA("ImageButton") or current:IsA("TextBox") then
+                    return true
+                end
+                current = current.Parent
+            end
+            return false
+        end
         Main.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                if isInteractiveGui(LocalPlayer:GetMouse().Target) then
+                    return
+                end
                 dragging = true
                 dragStart = input.Position
                 startPos = Main.Position
@@ -422,15 +471,81 @@ function GuiLibrary.Initialize(callbacks)
         end
     end)
 
+    local function addKeybind(card, name, description, defaultKey, callback)
+        local row = Instance.new("Frame", card)
+        row.Size = UDim2.new(1, 0, 0, description and 30 or 21)
+        row.BackgroundTransparency = 1
+        table.insert(registeredRows, {Frame = row, Name = name:lower()})
+
+        local rowTitle = Instance.new("TextLabel", row)
+        rowTitle.Size = UDim2.new(1, -75, 0, 14)
+        rowTitle.BackgroundTransparency = 1
+        rowTitle.Text = name
+        rowTitle.Font = Enum.Font.GothamMedium
+        rowTitle.TextSize = 11
+        rowTitle.TextColor3 = THEME.TextPrimary
+        rowTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+        if description then
+            local rowDesc = Instance.new("TextLabel", row)
+            rowDesc.Size = UDim2.new(1, -75, 0, 12)
+            rowDesc.Position = UDim2.new(0, 0, 0, 14)
+            rowDesc.BackgroundTransparency = 1
+            rowDesc.Text = description
+            rowDesc.Font = Enum.Font.Gotham
+            rowDesc.TextSize = 9
+            rowDesc.TextColor3 = THEME.TextMuted
+            rowDesc.TextXAlignment = Enum.TextXAlignment.Left
+        end
+
+        local bindBtn = Instance.new("TextButton", row)
+        bindBtn.Size = UDim2.new(0, 62, 0, 20)
+        bindBtn.Position = UDim2.new(1, -62, 0.5, -10)
+        bindBtn.BackgroundColor3 = THEME.BadgeBg
+        bindBtn.TextColor3 = THEME.AccentSoft
+        bindBtn.Font = Enum.Font.GothamBold
+        bindBtn.TextSize = 10
+        bindBtn.Text = defaultKey.Name
+        bindBtn.AutoButtonColor = false
+        Instance.new("UICorner", bindBtn).CornerRadius = UDim.new(0, 4)
+        Instance.new("UIStroke", bindBtn).Color = THEME.Border
+
+        local listening = false
+        bindBtn.MouseButton1Click:Connect(function()
+            listening = true
+            bindBtn.Text = "..."
+        end)
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if not listening or gameProcessed then
+                return
+            end
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                listening = false
+                bindBtn.Text = input.KeyCode.Name
+                if callback then callback(input.KeyCode) end
+            end
+        end)
+        return bindBtn
+    end
+
     -- Наполнение вкладок функциями FTAP
     -- [COMBAT]
     local cCard1 = createCard("Combat", 1, "Fling & Power")
     addToggle(cCard1, "Anti-Fling", "Защита от флинга", true, function(s) if callbacks.OnAntiFlingToggle then callbacks.OnAntiFlingToggle(s) end end)
-    addToggle(cCard1, "Super Duper Far Power", "Макс. сила броска", true, function(s) if s and callbacks.OnPowerBoost then callbacks.OnPowerBoost() end end)
+    addToggle(cCard1, "Super Duper Far Power", "Макс. сила броска", true, function(s) if callbacks.OnPowerBoost then callbacks.OnPowerBoost(s) end end)
     addToggle(cCard1, "Fling Aura", "Швыряние всех вокруг тебя", false, function(s) if callbacks.OnFlingAuraToggle then callbacks.OnFlingAuraToggle(s) end end)
 
     local cCard2 = createCard("Combat", 2, "Aim Assist")
-    addToggle(cCard2, "Enable Aim Bot", "Наведение по бинду (Q)", false, function(s) if callbacks.OnAimToggle then callbacks.OnAimToggle(s, "LeftHand", Enum.KeyCode.Q) end end)
+    local aimEnabled = false
+    local aimKey = Enum.KeyCode.Q
+    addToggle(cCard2, "Enable Aim Bot", "Наведение по бинду (зажми)", false, function(s)
+        aimEnabled = s
+        if callbacks.OnAimToggle then callbacks.OnAimToggle(s, "Head", aimKey) end
+    end)
+    addKeybind(cCard2, "Aim Keybind", "Клавиша прицеливания", aimKey, function(key)
+        aimKey = key
+        if callbacks.OnAimToggle then callbacks.OnAimToggle(aimEnabled, "Head", key) end
+    end)
 
     -- [VISUALS]
     local vCard1 = createCard("Visuals", 1, "ESP Options")
@@ -447,7 +562,13 @@ function GuiLibrary.Initialize(callbacks)
     -- [MISC]
     local mCard1 = createCard("Misc", 1, "Settings")
     addToggle(mCard1, "Third Person View", "Вид от третьего лица", true, function(s)
-        LocalPlayer.CameraMaxZoomDistance = s and 150 or 15
+        if callbacks.OnThirdPersonToggle then
+            callbacks.OnThirdPersonToggle(s)
+        else
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+            LocalPlayer.CameraMinZoomDistance = 0.5
+            LocalPlayer.CameraMaxZoomDistance = s and 150 or 12
+        end
     end)
 
     -- Скрытие меню по RightShift
