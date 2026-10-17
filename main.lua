@@ -1,7 +1,7 @@
 --[main.lua]--
 local repo = "https://raw.githubusercontent.com/luaexedll/rbxscriptDrop/refs/heads/main/"
 
--- Загрузка GUI в новом стиле SKV FTAP
+-- Загрузка GUI в оригинальном стиле со вкладками
 local success, GUI = pcall(function()
     return loadstring(game:HttpGet(repo .. "Gui.lua"))()
 end)
@@ -20,11 +20,15 @@ local successESP, ESPModule = pcall(function()
     return loadstring(game:HttpGet(repo .. "Modules/ESP.lua"))()
 end)
 
+local successFling, FlingModule = pcall(function()
+    return loadstring(game:HttpGet(repo .. "Modules/Fling.lua"))()
+end)
+
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- 1. Anti-Fling (Включена по умолчанию)
+-- 1. Anti-Fling (Защита от чужих флингов)
 local antiFlingActive = true
 local antiFlingConnection
 local function toggleAntiFling(state)
@@ -51,20 +55,14 @@ local function toggleAntiFling(state)
 end
 toggleAntiFling(true)
 
--- 2. Power: Super Duper Far & Power Level (Максимальная сила броска)
+-- 2. Power: Super Duper Far & Power Level
 local function setSuperDuperFarPower()
     pcall(function()
         for _, v in pairs(getgc(true)) do
             if type(v) == "table" then
-                if rawget(v, "ThrowPower") then
-                    v.ThrowPower = 999999
-                end
-                if rawget(v, "PowerLevel") then
-                    v.PowerLevel = 999999
-                end
-                if rawget(v, "MaxPower") then
-                    v.MaxPower = 999999
-                end
+                if rawget(v, "ThrowPower") then v.ThrowPower = 999999 end
+                if rawget(v, "PowerLevel") then v.PowerLevel = 999999 end
+                if rawget(v, "MaxPower") then v.MaxPower = 999999 end
             end
         end
     end)
@@ -74,28 +72,23 @@ setSuperDuperFarPower()
 -- 3. Вид от третьего лица
 LocalPlayer.CameraMaxZoomDistance = 150
 LocalPlayer.CameraMinZoomDistance = 0.5
-LocalPlayer.CameraMode = Enum.CameraMode.Custom
+LocalPlayer.CameraMode = Enum.CameraMode.Classic
 
--- 4. Инициализация связи с GUI
+-- 4. Инициализация связок с GUI
 if GUI.Initialize then
     GUI.Initialize({
-        OnAntiFlingToggle = function(state)
-            toggleAntiFling(state)
-        end,
-        OnPowerBoost = function()
-            setSuperDuperFarPower()
+        OnAntiFlingToggle = function(state) toggleAntiFling(state) end,
+        OnPowerBoost = function() setSuperDuperFarPower() end,
+        OnFlingAuraToggle = function(state)
+            if FlingModule and FlingModule.SetActive then FlingModule.SetActive(state) end
         end,
         OnAimToggle = function(state, targetPart, keybind)
-            if AimModule and AimModule.SetActive then
-                AimModule.SetActive(state, targetPart, keybind)
-            end
+            if AimModule and AimModule.SetActive then AimModule.SetActive(state, targetPart, keybind) end
         end,
         OnESPToggle = function(options)
-            if ESPModule and ESPModule.UpdateSettings then
-                ESPModule.UpdateSettings(options)
-            end
+            if ESPModule and ESPModule.UpdateSettings then ESPModule.UpdateSettings(options) end
         end
     })
 end
 
-print("[Script] SKV FTAP loaded successfully!")
+print("[Script] SKV FTAP Loaded Successfully!")
