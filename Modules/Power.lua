@@ -13,7 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 
 -- Сила броска (стад/с). Ванильный бросок — сотни; 2200-5000 — сверхдальний.
-local THROW_STRENGTH = 1000
+local THROW_STRENGTH = 200
 
 function Power.new(strength)
     local self = setmetatable({}, Power)
