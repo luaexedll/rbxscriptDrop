@@ -49,15 +49,29 @@ if power then
     power:SetActive(true)
 end
 
--- Вид от третьего лица (зум в обе стороны)
+-- Вид от третьего лица как шифтлок:
+-- ВКЛ — третий класс (Classic, зум 0.5–150), ВЫКЛ — строго первый (LockFirstPerson)
+local thirdPersonEnabled = true
 local function setThirdPerson(enabled)
+    thirdPersonEnabled = (enabled == true)
     pcall(function()
-        LocalPlayer.CameraMode = Enum.CameraMode.Classic
-        LocalPlayer.CameraMinZoomDistance = 0.5
-        LocalPlayer.CameraMaxZoomDistance = enabled and 150 or 12
+        if thirdPersonEnabled then
+            LocalPlayer.CameraMode = Enum.CameraMode.Classic
+            LocalPlayer.CameraMinZoomDistance = 0.5
+            LocalPlayer.CameraMaxZoomDistance = 150
+        else
+            LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+        end
     end)
 end
 setThirdPerson(true)
+
+-- Игра сбрасывает камеру при респавне — восстанавливаем режим
+LocalPlayer.CharacterAdded:Connect(function()
+    task.defer(function()
+        setThirdPerson(thirdPersonEnabled)
+    end)
+end)
 
 ---------------------------------------------------------------------------
 -- Связка GUI с модулями
@@ -95,6 +109,21 @@ if GUI.Initialize then
         end,
         OnThirdPersonToggle = function(state)
             setThirdPerson(state)
+        end,
+        OnPowerStrength = function(value)
+            if power then
+                power:SetStrength(value)
+            end
+        end,
+        OnAimSettings = function(options)
+            if aim and aim.UpdateSettings then
+                aim.UpdateSettings(options)
+            end
+        end,
+        OnAimWhitelist = function(playerName, state)
+            if aim and aim.SetWhitelisted then
+                aim.SetWhitelisted(playerName, state)
+            end
         end
     })
 end
