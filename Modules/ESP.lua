@@ -5,6 +5,7 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
 local settings = {
+    Enabled = false,
     Boxes = false,
     Names = false,
     Distance = false,
@@ -23,7 +24,8 @@ local espDrawings = {}
 local highlights = {}
 
 local function isEspEnabled()
-    return settings.Boxes or settings.Names or settings.Distance or settings.Health or settings.Tracers
+    return settings.Enabled
+        and (settings.Boxes or settings.Names or settings.Distance or settings.Health or settings.Tracers)
 end
 
 local function createDrawings()
@@ -61,7 +63,7 @@ function ESPModule.UpdateSettings(newSettings)
             settings[key] = value
         end
     end
-    if not settings.Chams then
+    if not (settings.Enabled and settings.Chams) then
         for player in pairs(highlights) do
             destroyHighlight(player)
         end
@@ -98,7 +100,7 @@ RunService.RenderStepped:Connect(function()
             local humanoid = char and char:FindFirstChildOfClass("Humanoid")
 
             -- Chams (Highlight) --------------------------------------------
-            if settings.Chams then
+            if settings.Enabled and settings.Chams then
                 if char and hrp then
                     local highlight = highlights[player]
                     if not highlight or highlight.Parent ~= char then
