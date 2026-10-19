@@ -219,13 +219,29 @@ function GuiLibrary.Initialize(callbacks)
         end)
     end
 
-    -- Показ/скрытие меню по RightShift (при старте меню скрыто)
+    -- Показ/скрытие меню по RightShift (при старте меню скрыто).
+    -- При открытии мышка разблокируется (игра идёт от первого лица).
     local isUIVisible = false
     Main.Visible = false
+    local savedMouseBehavior = nil
+    local savedMouseIcon = nil
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if input.KeyCode == Enum.KeyCode.RightShift then
             isUIVisible = not isUIVisible
             Main.Visible = isUIVisible
+            if isUIVisible then
+                savedMouseBehavior = UserInputService.MouseBehavior
+                savedMouseIcon = UserInputService.MouseIconEnabled
+                UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+                UserInputService.MouseIconEnabled = true
+            else
+                if savedMouseBehavior then
+                    UserInputService.MouseBehavior = savedMouseBehavior
+                end
+                if savedMouseIcon ~= nil then
+                    UserInputService.MouseIconEnabled = savedMouseIcon
+                end
+            end
         end
     end)
 
@@ -405,6 +421,46 @@ function GuiLibrary.Initialize(callbacks)
     end
 
     local registeredRows = {}
+    local featureRegistry = {}  -- фичи с биндингами (клавиша + Toggle/Hold)
+    local listeningEntry = nil  -- кому сейчас назначается клавиша
+
+    local function applyToggleVisual(switch, knob, state)
+        switch.BackgroundColor3 = state and THEME.Accent or THEME.ToggleOff
+        knob.BackgroundColor3 = state and THEME.KnobOn or THEME.KnobOff
+        knob.Position = state and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
+    end
+
+    local function createToggle(row, defaultState, rightOffset, callback)
+        local switch = Instance.new("TextButton", row)
+        switch.Size = UDim2.new(0, 32, 0, 16)
+        switch.Position = UDim2.new(1, rightOffset, 0.5, -8)
+        switch.Text = ""
+        switch.AutoButtonColor = false
+        Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+
+        local knob = Instance.new("Frame", switch)
+        knob.Size = UDim2.new(0, 12, 0, 12)
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+        local handle = {State = (defaultState == true)}
+        function handle:Set(state, fire)
+            state = (state == true)
+            if state == handle.State then
+                return
+            end
+            handle.State = state
+            applyToggleVisual(switch, knob, state)
+            if fire ~= false and callback then
+                callback(state)
+            end
+        end
+        switch.MouseButton1Click:Connect(function()
+            handle:Set(not handle.State)
+        end)
+        applyToggleVisual(switch, knob, handle.State)
+        return handle
+    end
+
     local function addToggle(card, name, description, defaultState, callback)
         local row = Instance.new("Frame", card)
         row.Size = UDim2.new(1, 0, 0, description and 30 or 21)
@@ -432,27 +488,257 @@ function GuiLibrary.Initialize(callbacks)
             rowDesc.TextXAlignment = Enum.TextXAlignment.Left
         end
 
-        local switch = Instance.new("TextButton", row)
-        switch.Size = UDim2.new(0, 32, 0, 16)
-        switch.Position = UDim2.new(1, -32, 0.5, -8)
-        switch.BackgroundColor3 = defaultState and THEME.Accent or THEME.ToggleOff
-        switch.Text = ""
-        Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+        createToggle(row, defaultState, -32, callback)
+    end
 
-        local knob = Instance.new("Frame", switch)
-        knob.Size = UDim2.new(0, 12, 0, 12)
-        knob.Position = defaultState and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
-        knob.BackgroundColor3 = defaultState and THEME.KnobOn or THEME.KnobOff
-        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+    -- Функция с переключателем и биндингом: клавиша + режим TG (Toggle) / HD (Hold)
+    local function addFeature(card, name, description, defaultState, callback)
+        local row = Instance.new("Frame", card)
+        row.Size = UDim2.new(1, 0, 0, description and 30 or 21)
+        row.BackgroundTransparency = 1
+        table.insert(registeredRows, {Frame = row, Name = name:lower()})
 
-        local isToggled = defaultState
-        switch.MouseButton1Click:Connect(function()
-            isToggled = not isToggled
-            switch.BackgroundColor3 = isToggled and THEME.Accent or THEME.ToggleOff
-            knob.BackgroundColor3 = isToggled and THEME.KnobOn or THEME.KnobOff
-            knob.Position = isToggled and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6)
-            if callback then callback(isToggled) end
+        local rowTitle = Instance.new("TextLabel", row)
+        rowTitle.Size = UDim2.new(1, -150, 0, 14)
+        rowTitle.BackgroundTransparency = 1
+        rowTitle.Text = name
+        rowTitle.Font = Enum.Font.GothamMedium
+        rowTitle.TextSize = 11
+        rowTitle.TextColor3 = THEME.TextPrimary
+        rowTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+        if description then
+            local rowDesc = Instance.new("TextLabel", row)
+            rowDesc.Size = UDim2.new(1, -150, 0, 12)
+            rowDesc.Position = UDim2.new(0, 0, 0, 14)
+            rowDesc.BackgroundTransparency = 1
+            rowDesc.Text = description
+            rowDesc.Font = Enum.Font.Gotham
+            rowDesc.TextSize = 9
+            rowDesc.TextColor3 = THEME.TextMuted
+            rowDesc.TextXAlignment = Enum.TextXAlignment.Left
+        end
+
+        local handle = createToggle(row, defaultState, -32, callback)
+
+        -- Кнопка режима бинда: TG (toggle) / HD (hold)
+        local modeBtn = Instance.new("TextButton", row)
+        modeBtn.Size = UDim2.new(0, 24, 0, 20)
+        modeBtn.Position = UDim2.new(1, -62, 0.5, -10)
+        modeBtn.BackgroundColor3 = THEME.BadgeBg
+        modeBtn.TextColor3 = THEME.AccentSoft
+        modeBtn.Font = Enum.Font.GothamBold
+        modeBtn.TextSize = 9
+        modeBtn.Text = "TG"
+        modeBtn.AutoButtonColor = false
+        Instance.new("UICorner", modeBtn).CornerRadius = UDim.new(0, 4)
+        Instance.new("UIStroke", modeBtn).Color = THEME.Border
+
+        -- Кнопка назначения клавиши
+        local bindBtn = Instance.new("TextButton", row)
+        bindBtn.Size = UDim2.new(0, 60, 0, 20)
+        bindBtn.Position = UDim2.new(1, -126, 0.5, -10)
+        bindBtn.BackgroundColor3 = THEME.BadgeBg
+        bindBtn.TextColor3 = THEME.TextMuted
+        bindBtn.Font = Enum.Font.GothamBold
+        bindBtn.TextSize = 10
+        bindBtn.Text = "--"
+        bindBtn.AutoButtonColor = false
+        Instance.new("UICorner", bindBtn).CornerRadius = UDim.new(0, 4)
+        Instance.new("UIStroke", bindBtn).Color = THEME.Border
+
+        local entry = {Handle = handle, Key = nil, Mode = "Toggle", Holding = false, BindBtn = bindBtn}
+        table.insert(featureRegistry, entry)
+
+        modeBtn.MouseButton1Click:Connect(function()
+            entry.Mode = (entry.Mode == "Toggle") and "Hold" or "Toggle"
+            modeBtn.Text = (entry.Mode == "Toggle") and "TG" or "HD"
         end)
+        bindBtn.MouseButton1Click:Connect(function()
+            if listeningEntry and listeningEntry.BindBtn then
+                listeningEntry.BindBtn.Text = listeningEntry.Key and listeningEntry.Key.Name or "--"
+            end
+            listeningEntry = entry
+            bindBtn.Text = "..."
+        end)
+
+        return handle
+    end
+
+    -- Центральный обработчик: назначение клавиш и срабатывание биндов
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if input.UserInputType ~= Enum.UserInputType.Keyboard then
+            return
+        end
+        if listeningEntry then
+            listeningEntry.BindBtn.Text = input.KeyCode.Name
+            if listeningEntry.OnSet then
+                -- отдельная строка-бинд (например, Aim Key)
+                listeningEntry.OnSet(input.KeyCode)
+            else
+                listeningEntry.Key = input.KeyCode
+                listeningEntry.Holding = false
+            end
+            listeningEntry = nil
+            return
+        end
+        for _, entry in ipairs(featureRegistry) do
+            if entry.Key and input.KeyCode == entry.Key then
+                if entry.Mode == "Toggle" then
+                    entry.Handle:Set(not entry.Handle.State)
+                elseif not entry.Holding then
+                    entry.Holding = true
+                    entry.Handle:Set(true)
+                end
+            end
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if input.UserInputType ~= Enum.UserInputType.Keyboard then
+            return
+        end
+        for _, entry in ipairs(featureRegistry) do
+            if entry.Key and input.KeyCode == entry.Key and entry.Mode == "Hold" and entry.Holding then
+                entry.Holding = false
+                entry.Handle:Set(false)
+            end
+        end
+    end)
+
+    -- Инфраструктура слайдеров (перетаскивание мышью)
+    local sliderDrag = nil
+    UserInputService.InputChanged:Connect(function(input)
+        if sliderDrag and input.UserInputType == Enum.UserInputType.MouseMovement then
+            sliderDrag(input.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            sliderDrag = nil
+        end
+    end)
+
+    local function addSlider(card, name, minVal, maxVal, defaultVal, onChange)
+        local row = Instance.new("Frame", card)
+        row.Size = UDim2.new(1, 0, 0, 34)
+        row.BackgroundTransparency = 1
+        table.insert(registeredRows, {Frame = row, Name = name:lower()})
+
+        local rowTitle = Instance.new("TextLabel", row)
+        rowTitle.Size = UDim2.new(1, -60, 0, 14)
+        rowTitle.BackgroundTransparency = 1
+        rowTitle.Text = name
+        rowTitle.Font = Enum.Font.GothamMedium
+        rowTitle.TextSize = 11
+        rowTitle.TextColor3 = THEME.TextPrimary
+        rowTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+        local valueLabel = Instance.new("TextLabel", row)
+        valueLabel.Size = UDim2.new(0, 55, 0, 14)
+        valueLabel.Position = UDim2.new(1, -55, 0, 0)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.TextSize = 10
+        valueLabel.TextColor3 = THEME.AccentSoft
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+        local track = Instance.new("TextButton", row)
+        track.Size = UDim2.new(1, 0, 0, 4)
+        track.Position = UDim2.new(0, 0, 0, 22)
+        track.BackgroundColor3 = THEME.ToggleOff
+        track.Text = ""
+        track.AutoButtonColor = false
+        Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+        local fill = Instance.new("Frame", track)
+        fill.BackgroundColor3 = THEME.Accent
+        Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+        local knob = Instance.new("Frame", track)
+        knob.Size = UDim2.new(0, 12, 0, 12)
+        knob.BackgroundColor3 = THEME.KnobOn
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+        Instance.new("UIStroke", knob).Color = THEME.Accent
+
+        local current = defaultVal
+        local handle = {}
+
+        function handle:Render()
+            local alpha = (current - minVal) / math.max(maxVal - minVal, 1e-9)
+            alpha = math.clamp(alpha, 0, 1)
+            fill.Size = UDim2.new(alpha, 0, 1, 0)
+            knob.Position = UDim2.new(alpha, -6, 0.5, -6)
+            valueLabel.Text = tostring(math.floor(current + 0.5))
+        end
+        function handle:Get()
+            return current
+        end
+        function handle:Set(value)
+            current = math.clamp(tonumber(value) or current, minVal, maxVal)
+            handle:Render()
+        end
+
+        local function setFromX(x)
+            local width = math.max(track.AbsoluteSize.X, 1)
+            local alpha = math.clamp((x - track.AbsolutePosition.X) / width, 0, 1)
+            current = minVal + alpha * (maxVal - minVal)
+            handle:Render()
+            if onChange then onChange(current) end
+        end
+
+        track.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                setFromX(input.Position.X)
+                sliderDrag = setFromX
+            end
+        end)
+
+        handle:Render()
+        return handle
+    end
+
+    local function addNumberInput(card, name, defaultVal, onChange)
+        local row = Instance.new("Frame", card)
+        row.Size = UDim2.new(1, 0, 0, 24)
+        row.BackgroundTransparency = 1
+        table.insert(registeredRows, {Frame = row, Name = name:lower()})
+
+        local rowTitle = Instance.new("TextLabel", row)
+        rowTitle.Size = UDim2.new(1, -95, 0, 24)
+        rowTitle.BackgroundTransparency = 1
+        rowTitle.Text = name
+        rowTitle.Font = Enum.Font.GothamMedium
+        rowTitle.TextSize = 11
+        rowTitle.TextColor3 = THEME.TextPrimary
+        rowTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+        local box = Instance.new("TextBox", row)
+        box.Size = UDim2.new(0, 90, 0, 20)
+        box.Position = UDim2.new(1, -90, 0.5, -10)
+        box.BackgroundColor3 = THEME.BadgeBg
+        box.TextColor3 = THEME.TextPrimary
+        box.Font = Enum.Font.GothamBold
+        box.TextSize = 10
+        box.Text = tostring(defaultVal)
+        box.ClearTextOnFocus = false
+        box.TextXAlignment = Enum.TextXAlignment.Center
+        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+        Instance.new("UIStroke", box).Color = THEME.Border
+
+        local handle = {}
+        function handle:Get()
+            return tonumber(box.Text)
+        end
+        box.FocusLost:Connect(function()
+            local value = tonumber(box.Text)
+            if value then
+                box.Text = tostring(value)
+                if onChange then onChange(value) end
+            else
+                box.Text = tostring(defaultVal)
+            end
+        end)
+        return handle
     end
 
     SearchInput:GetPropertyChangedSignal("Text"):Connect(function()
@@ -501,20 +787,12 @@ function GuiLibrary.Initialize(callbacks)
         Instance.new("UICorner", bindBtn).CornerRadius = UDim.new(0, 4)
         Instance.new("UIStroke", bindBtn).Color = THEME.Border
 
-        local listening = false
         bindBtn.MouseButton1Click:Connect(function()
-            listening = true
+            if listeningEntry and listeningEntry.BindBtn then
+                listeningEntry.BindBtn.Text = listeningEntry.Key and listeningEntry.Key.Name or "--"
+            end
+            listeningEntry = {BindBtn = bindBtn, Key = defaultKey, OnSet = callback}
             bindBtn.Text = "..."
-        end)
-        UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if not listening or gameProcessed then
-                return
-            end
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                listening = false
-                bindBtn.Text = input.KeyCode.Name
-                if callback then callback(input.KeyCode) end
-            end
         end)
         return bindBtn
     end
@@ -522,27 +800,117 @@ function GuiLibrary.Initialize(callbacks)
     -- Наполнение вкладок функциями FTAP
     -- [COMBAT]
     local cCard1 = createCard("Combat", 1, "Fling & Power")
-    addToggle(cCard1, "Anti-Fling", "Защита от флинга", true, function(s) if callbacks.OnAntiFlingToggle then callbacks.OnAntiFlingToggle(s) end end)
-    addToggle(cCard1, "Super Duper Far Power", "Макс. сила броска", true, function(s) if callbacks.OnPowerBoost then callbacks.OnPowerBoost(s) end end)
-    addToggle(cCard1, "Fling Aura", "Швыряние всех вокруг тебя", false, function(s) if callbacks.OnFlingAuraToggle then callbacks.OnFlingAuraToggle(s) end end)
+    addFeature(cCard1, "Anti-Fling", "Защита от флинга", true, function(s) if callbacks.OnAntiFlingToggle then callbacks.OnAntiFlingToggle(s) end end)
+    addFeature(cCard1, "Super Duper Far Power", "Макс. сила броска", true, function(s) if callbacks.OnPowerBoost then callbacks.OnPowerBoost(s) end end)
+
+    local powerDefault = 5000
+    local powerSlider = addSlider(cCard1, "Power Strength", 100, 100000, powerDefault, function(v)
+        if callbacks.OnPowerStrength then callbacks.OnPowerStrength(v) end
+    end)
+    addNumberInput(cCard1, "Своя сила (число)", powerDefault, function(v)
+        powerSlider:Set(v)
+        if callbacks.OnPowerStrength then callbacks.OnPowerStrength(v) end
+    end)
+
+    addFeature(cCard1, "Fling Aura", "Крутит тебя на месте, швыряет всех вокруг", false, function(s) if callbacks.OnFlingAuraToggle then callbacks.OnFlingAuraToggle(s) end end)
 
     local cCard2 = createCard("Combat", 2, "Aim Assist")
     local aimEnabled = false
     local aimKey = Enum.KeyCode.Q
-    addToggle(cCard2, "Enable Aim Bot", "Наведение по бинду (зажми)", false, function(s)
+    addFeature(cCard2, "Enable Aim Bot", "Наведение по зажатой клавише", false, function(s)
         aimEnabled = s
         if callbacks.OnAimToggle then callbacks.OnAimToggle(s, "Head", aimKey) end
     end)
-    addKeybind(cCard2, "Aim Keybind", "Клавиша прицеливания", aimKey, function(key)
+    addKeybind(cCard2, "Aim Key", "Клавиша прицеливания (зажим)", aimKey, function(key)
         aimKey = key
         if callbacks.OnAimToggle then callbacks.OnAimToggle(aimEnabled, "Head", key) end
     end)
 
+    -- [COMBAT / Aim Settings]
+    local cCard3 = createCard("Combat", 2, "Aim Settings")
+    local aimSettings = {Smoothness = 100, Fov = 35, Range = 1000, DrawFov = false}
+    local function updateAimSettings() if callbacks.OnAimSettings then callbacks.OnAimSettings(aimSettings) end end
+
+    addSlider(cCard3, "Резкость (1-100)", 1, 100, 100, function(v)
+        aimSettings.Smoothness = math.floor(v + 0.5)
+        updateAimSettings()
+    end)
+    addSlider(cCard3, "FOV (градусы)", 5, 180, 35, function(v)
+        aimSettings.Fov = math.floor(v + 0.5)
+        updateAimSettings()
+    end)
+    addSlider(cCard3, "Дальность", 100, 5000, 1000, function(v)
+        aimSettings.Range = math.floor(v + 0.5)
+        updateAimSettings()
+    end)
+    addToggle(cCard3, "Draw FOV", "Круг прицела на экране", false, function(s)
+        aimSettings.DrawFov = s
+        updateAimSettings()
+    end)
+
+    -- [COMBAT / Aim Whitelist]
+    local cCard4 = createCard("Combat", 2, "Aim Whitelist")
+    local wlHint = Instance.new("TextLabel", cCard4)
+    wlHint.Size = UDim2.new(1, 0, 0, 12)
+    wlHint.BackgroundTransparency = 1
+    wlHint.Text = "Клик по игроку — аим его игнорирует"
+    wlHint.Font = Enum.Font.Gotham
+    wlHint.TextSize = 9
+    wlHint.TextColor3 = THEME.TextMuted
+    wlHint.TextXAlignment = Enum.TextXAlignment.Left
+
+    local wlFrame = Instance.new("ScrollingFrame", cCard4)
+    wlFrame.Size = UDim2.new(1, 0, 0, 110)
+    wlFrame.BackgroundTransparency = 1
+    wlFrame.ScrollBarThickness = 0
+    wlFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    local wlList = Instance.new("UIListLayout", wlFrame)
+    wlList.Padding = UDim.new(0, 4)
+    wlList.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local aimWhitelist = {}
+    local function refreshWhitelist()
+        for _, child in ipairs(wlFrame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        local order = 0
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                order = order + 1
+                local whitelisted = (aimWhitelist[plr.Name] == true)
+                local btn = Instance.new("TextButton", wlFrame)
+                btn.Size = UDim2.new(1, 0, 0, 20)
+                btn.LayoutOrder = order
+                btn.BackgroundColor3 = THEME.BadgeBg
+                btn.Font = Enum.Font.GothamMedium
+                btn.TextSize = 10
+                btn.TextXAlignment = Enum.TextXAlignment.Left
+                btn.Text = "  " .. plr.Name .. (whitelisted and "   [WL]" or "")
+                btn.TextColor3 = whitelisted and THEME.Accent or THEME.TextPrimary
+                btn.AutoButtonColor = false
+                Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+                btn.MouseButton1Click:Connect(function()
+                    aimWhitelist[plr.Name] = not aimWhitelist[plr.Name] or nil
+                    if callbacks.OnAimWhitelist then
+                        callbacks.OnAimWhitelist(plr.Name, aimWhitelist[plr.Name] == true)
+                    end
+                    refreshWhitelist()
+                end)
+            end
+        end
+    end
+    refreshWhitelist()
+    Players.PlayerAdded:Connect(refreshWhitelist)
+    Players.PlayerRemoving:Connect(refreshWhitelist)
+
     -- [VISUALS]
     local vCard1 = createCard("Visuals", 1, "ESP Options")
-    local espSettings = {Boxes = false, Names = false, Distance = false, Health = false, Tracers = false, Chams = false}
+    local espSettings = {Enabled = false, Boxes = false, Names = false, Distance = false, Health = false, Tracers = false, Chams = false}
     local function updateESP() if callbacks.OnESPToggle then callbacks.OnESPToggle(espSettings) end end
 
+    addFeature(vCard1, "Enable ESP", "Главный включатель ESP", false, function(s) espSettings.Enabled = s; updateESP() end)
     addToggle(vCard1, "Boxes", "Рамки вокруг игроков", false, function(s) espSettings.Boxes = s; updateESP() end)
     addToggle(vCard1, "Names", "Имена игроков", false, function(s) espSettings.Names = s; updateESP() end)
     addToggle(vCard1, "Distance", "Дистанция", false, function(s) espSettings.Distance = s; updateESP() end)
@@ -552,13 +920,9 @@ function GuiLibrary.Initialize(callbacks)
 
     -- [MISC]
     local mCard1 = createCard("Misc", 1, "Settings")
-    addToggle(mCard1, "Third Person View", "Вид от третьего лица", true, function(s)
+    addFeature(mCard1, "Third Person View", "ВКЛ — от третьего лица, ВЫКЛ — от первого", true, function(s)
         if callbacks.OnThirdPersonToggle then
             callbacks.OnThirdPersonToggle(s)
-        else
-            LocalPlayer.CameraMode = Enum.CameraMode.Classic
-            LocalPlayer.CameraMinZoomDistance = 0.5
-            LocalPlayer.CameraMaxZoomDistance = s and 150 or 12
         end
     end)
 
