@@ -13,7 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 local Debris = game:GetService("Debris")
 
 -- Сила броска (стад/с). Ванильный бросок — сотни; 2200-5000 — сверхдальний.
-local THROW_STRENGTH = 100
+local THROW_STRENGTH = 5000
 
 function Power.new(strength)
     local self = setmetatable({}, Power)
@@ -21,6 +21,14 @@ function Power.new(strength)
     self.Strength = strength or THROW_STRENGTH
     self._connection = nil
     return self
+end
+
+-- Сила броска задаётся из GUI (слайдер или ввод числа, без ограничений)
+function Power:SetStrength(value)
+    value = tonumber(value)
+    if value and value >= 0 then
+        self.Strength = value
+    end
 end
 
 function Power:_onGrabAdded(model)
