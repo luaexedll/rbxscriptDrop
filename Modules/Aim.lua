@@ -1,7 +1,8 @@
 --[Modules/Aim.lua]--
+-- Аим по зажатой клавише с настройками: резкость, FOV, дальность,
+-- рисование круга FOV и вайтлистом игроков.
 local AimModule = {}
 local UserInputService = game:GetService("UserInputService")
-local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
@@ -10,9 +11,36 @@ local active = false
 local targetPartName = "Head"
 local aimKey = Enum.KeyCode.Q
 
--- Запасные части тела: имена отличаются между R6 и R15,
--- поэтому при отсутствии выбранной части целимся в голову/корпус
+local settings = {
+    Smoothness = 100, -- 1 (плавно) .. 100 (мгновенно)
+    Fov = 35,         -- градусы конуса наведения
+    Range = 1000,     -- дальность до цели (стады)
+    DrawFov = false   -- рисовать круг FOV на экране
+}
+
+local whitelist = {} -- [Имя игрока] = true -> аим игнорирует
+
+-- Запасные части тела: имена отличаются между R6 и R15
 local FALLBACK_PARTS = { "Head", "UpperTorso", "Torso", "HumanoidRootPart" }
+
+-- Круг FOV (Drawing API, если доступен)
+local fovCircle = nil
+local function getFovCircle()
+    if fovCircle or Drawing == nil then
+        return fovCircle
+    end
+    local ok, circle = pcall(function()
+        return Drawing.new("Circle")
+    end)
+    if ok and circle then
+        circle.Visible = false
+        circle.Color = Color3.fromRGB(246, 92, 82)
+        circle.Thickness = 1.5
+        circle.Filled = false
+        fovCircle = circle
+    end
+    return fovCircle
+end
 
 local function getAimTargetPart(player)
     local char = player.Character
@@ -32,6 +60,18 @@ local function getAimTargetPart(player)
     return nil
 end
 
+local function fovToScreenRadius(camera)
+    local viewport = camera.ViewportSize
+    local halfFov = math.rad(settings.Fov * 0.5)
+    local halfScreenFov = math.rad(camera.FieldOfView * 0.5)
+    local tanFov = math.tan(halfFov)
+    local tanScreen = math.tan(halfScreenFov)
+    if tanScreen <= 0 then
+        return 0
+    end
+    return (tanFov / tanScreen) * (viewport.Y * 0.5)
+end
+
 function AimModule.SetActive(state, partName, key)
     active = (state == true)
     if partName then
@@ -40,48 +80,85 @@ function AimModule.SetActive(state, partName, key)
     if typeof(key) == "EnumItem" then
         aimKey = key
     end
+    if not active then
+        local circle = getFovCircle()
+        if circle then
+            circle.Visible = false
+        end
+    end
+end
+
+function AimModule.UpdateSettings(newSettings)
+    for key, value in pairs(newSettings) do
+        if settings[key] ~= nil then
+            settings[key] = value
+        end
+    end
+end
+
+function AimModule.SetWhitelisted(playerName, state)
+    if state then
+        whitelist[playerName] = true
+    else
+        whitelist[playerName] = nil
+    end
 end
 
 RunService.RenderStepped:Connect(function()
-    if not active then
-        return
-    end
-    if not UserInputService:IsKeyDown(aimKey) then
-        return
-    end
     local camera = workspace.CurrentCamera
     if not camera then
         return
     end
+    local circle = getFovCircle()
 
-    -- GetMouseLocation() учитывает GUI inset (верхняя панель),
-    -- а WorldToViewportPoint() — нет; вычитаем inset, чтобы координаты совпадали
-    local mousePos = UserInputService:GetMouseLocation()
-    pcall(function()
-        mousePos = mousePos - GuiService:GetGuiInset()
-    end)
+    if not active or not UserInputService:IsKeyDown(aimKey) then
+        if circle then
+            circle.Visible = false
+        end
+        return
+    end
 
-    local closestPart = nil
-    local shortestDistance = math.huge
+    -- Прицел — центр экрана; круг FOV рисуем от него же
+    local viewport = camera.ViewportSize
+    local screenCenter = Vector2.new(viewport.X * 0.5, viewport.Y * 0.5)
+    local fovRadius = fovToScreenRadius(camera)
+
+    if circle then
+        circle.Visible = (settings.DrawFov == true)
+        circle.Position = screenCenter
+        circle.Radius = fovRadius
+    end
+
+    local bestPart = nil
+    local bestScore = math.huge
 
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
+        if player ~= LocalPlayer and not whitelist[player.Name] then
             local part = getAimTargetPart(player)
             if part then
-                local screenPoint, onScreen = camera:WorldToViewportPoint(part.Position)
-                if onScreen then
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
-                    if dist < shortestDistance then
-                        shortestDistance = dist
-                        closestPart = part
+                local distance = (part.Position - camera.CFrame.Position).Magnitude
+                if distance <= settings.Range then
+                    local screenPoint, onScreen = camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local toTarget = (Vector2.new(screenPoint.X, screenPoint.Y) - screenCenter).Magnitude
+                        if toTarget <= fovRadius and toTarget < bestScore then
+                            bestScore = toTarget
+                            bestPart = part
+                        end
                     end
                 end
             end
         end
     end
 
-    if closestPart then
-        camera.CFrame = CFrame.new(camera.CFrame.Position, closestPart.Position)
+    if bestPart then
+        local targetCFrame = CFrame.new(camera.CFrame.Position, bestPart.Position)
+        local alpha = math.clamp((settings.Smoothness or 100) / 100, 0.02, 1)
+        if alpha >= 0.999 then
+            camera.CFrame = targetCFrame
+        else
+            camera.CFrame = camera.CFrame:Lerp(targetCFrame, alpha)
+        end
     end
 end)
 
